@@ -41,7 +41,7 @@ model.add(Dense(10,activation='softmax'))
 model.compile(loss = 'categorical_crossentropy', optimizer ='adam', metrics= ['accuracy'])
 m=model.fit(x_train,y_train, epochs=5, batch_size= batch_size,validation_data=(x_test,y_test))
 
-model.save('C:\Zaid\College\Federated Learning')
+#model.save('C:\Zaid\College\Federated Learning')
 
 def load_image(filename):
 	# load the image
