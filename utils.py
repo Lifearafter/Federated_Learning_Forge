@@ -36,12 +36,37 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms as transforms
 from torch import Tensor
-from torchvision import datasets
+from torchvision.datasets import MNIST
 from torchvision.models import resnet18
 
 DATA_ROOT = Path("./data/mnist")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
+class FastMNIST(MNIST):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Scale data to [0,1]
+        self.data = self.data.unsqueeze(1).float().div(255)
+
+        # Normalize it with the usual MNIST mean and std
+        self.data = self.data.sub_(0.1307).div_(0.3081)
+
+        # Put both data and targets on GPU in advance
+        self.data, self.targets = self.data.to(device), self.targets.to(device)
+
+    def __getitem__(self, index):
+        """
+        Args:
+            index (int): Index
+
+        Returns:
+            tuple: (image, target) where target is index of the target class.
+        """
+        img, target = self.data[index], self.targets[index]
+
+        return img, target
 # pylint: disable=unsubscriptable-object
 class Net(nn.Module):
     """Simple CNN adapted from 'PyTorch: A 60 Minute Blitz'."""
@@ -49,6 +74,10 @@ class Net(nn.Module):
     def __init__(self) -> None:
 
         super(Net, self).__init__()
+        #self.conv1 = nn.Conv2d(1, 32, 5, padding=2)
+        #self.conv2 = nn.Conv2d(32, 64, 5, padding=2)
+        #self.fc1 = nn.Linear(64*7*7, 1024)
+        #self.fc2 = nn.Linear(1024, 10)
         self.conv1 = nn.Conv2d(1, 32, 3, 1)
         self.conv2 = nn.Conv2d(32, 64, 3, 1)
         #self.dropout1 = nn.Dropout2d(0.25)
@@ -59,8 +88,16 @@ class Net(nn.Module):
        
 
     # pylint: disable=arguments-differ,invalid-name
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         """Compute forward pass."""
+        #x = F.max_pool2d(F.relu(self.conv1(x)), 2)
+        #x = F.max_pool2d(F.relu(self.conv2(x)), 2)
+        #x = x.view(-1, 64*7*7)
+        #x = F.relu(self.fc1(x))
+        #x = F.dropout(x, training=self.training)
+        #x = self.fc2(x)
+        #return F.log_softmax(x, dim=1)
+
         x = self.conv1(x)
         x = F.relu(x)
         x = self.conv2(x)
@@ -120,20 +157,22 @@ def load_model(model_name: str) -> nn.Module:
 
 
 # pylint: disable=unused-argument
-def load_mnist(download=True) -> Tuple[datasets.MNIST, datasets.MNIST]:
+def load_mnist(download=True):
     """Load CIFAR-10 (training and test set)."""
     transform = transforms.Compose(
         [
             transforms.ToTensor(),
-            transforms.Normalize((0.5,), (0.5,)),
+            transforms.Normalize((0.1307,), (0.3081,)),
         ]
     )
-    trainset = datasets.MNIST(
-        root=DATA_ROOT / "data", train=True, download=download, transform=transform
-    )
-    testset = datasets.MNIST(
-        root=DATA_ROOT / "data", train=False, download=download, transform=transform
-    )
+   # trainset = datasets.MNIST(
+        #root=DATA_ROOT / "data", train=True, download=download, transform=transform
+   # )
+    #testset = datasets.MNIST(
+        #root=DATA_ROOT / "data", train=False, download=download, transform=transform
+    #)
+    trainset = FastMNIST('data/MNIST', train = True, download=True )
+    testset = FastMNIST('data/MNIST', train = False, download=True )
     return trainset, testset
 
 

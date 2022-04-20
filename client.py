@@ -106,7 +106,7 @@ class MnistClient(fl.client.Client):
 
         # Train model
         trainloader = torch.utils.data.DataLoader(
-            self.trainset, batch_size=batch_size, shuffle=True, **kwargs
+            self.trainset, batch_size=batch_size, shuffle=True, num_workers=0, **kwargs
         )
         utils.train(self.model, trainloader, epochs=epochs, device=DEVICE)
 
@@ -129,7 +129,7 @@ class MnistClient(fl.client.Client):
 
         # Evaluate the updated model on the local dataset
         testloader = torch.utils.data.DataLoader(
-            self.testset, batch_size=32, shuffle=False
+            self.testset, batch_size=32, shuffle=False, num_workers=0
         )
         loss, accuracy = utils.test(self.model, testloader, device=DEVICE)
 
