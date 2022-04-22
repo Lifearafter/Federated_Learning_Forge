@@ -1,0 +1,56 @@
+########################################################################
+# See `here <https://pytorch.org/docs/stable/notes/serialization.html>`_
+# for more details on saving PyTorch models.
+#
+# 5. Test the network on the test data
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#
+# We have trained the network for 2 passes over the training dataset.
+# But we need to check if the network has learnt anything at all.
+#
+# We will check this by predicting the class label that the neural network
+# outputs, and checking it against the ground-truth. If the prediction is
+# correct, we add the sample to the list of correct predictions.
+#
+# Okay, first step. Let us display an image from the test set to get familiar.
+import numpy as np
+import torch
+import torchvision
+from PIL import Image
+import torchvision.transforms as transforms
+
+import nnmodel
+
+PATH = './model.pth'
+
+net = nnmodel.Net()
+net.load_state_dict(torch.load(PATH))
+net.eval()
+
+img = Image.open('img_1.png')
+'''img = img.resize((28, 28), 1)
+img = img.convert('L')
+img = np.invert(img)
+img = Image.fromarray(img)'''
+
+transform = transforms.Compose([
+    transforms.PILToTensor()
+])
+
+# Convert the PIL image to Torch tensor
+img.show()
+img = transform(img)
+
+
+# you can divide numpy arrays by a constant natively
+img = img / 255.0
+
+# This makes a 4d tensor (batched image) with shape [1, channels, width, height]
+image_8 = torch.Tensor(img).unsqueeze(axis=0)
+
+outputs = net(image_8)
+_, predicted = torch.max(outputs, 1)
+classes = ('0', '1', '2', '3',
+           '4', '5', '6', '7', '8', '9')
+print(predicted)
+print(['Predicted: ', ' '.join(f'{classes[predicted[0]]:s}')])
