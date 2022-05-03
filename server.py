@@ -76,7 +76,7 @@ parser.add_argument(
 parser.add_argument(
     "--batch_size",
     type=int,
-    default=32,
+    default=40,
     help="training batch size",
 )
 parser.add_argument(
@@ -152,7 +152,7 @@ def get_eval_fn(
     """Return an evaluation function for centralized evaluation."""
 
     def evaluate(weights: fl.common.Weights) -> Optional[Tuple[float, float]]:
-        """Use the entire MNIST test set for evaluation."""
+        """Use the entire CIFAR-10 test set for evaluation."""
 
         model = utils.load_model(args.model)
         set_weights(model, weights)
