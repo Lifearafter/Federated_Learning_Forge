@@ -1,3 +1,4 @@
+
 # Copyright 2020 Adap GmbH. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,15 +20,20 @@ import argparse
 import timeit
 from collections import OrderedDict
 from importlib import import_module
-
+from pathlib import Path
 import flwr as fl
 import numpy as np
 import torch
 import torchvision
+from PIL import Image
+import torchvision.transforms as transforms
 from flwr.common import EvaluateIns, EvaluateRes, FitIns, FitRes, ParametersRes, Weights
-
+import os 
 import utils
 
+#import mnist.py
+NUMBERS_ROOT = Path("./numbers.txt")
+f = open(NUMBERS_ROOT, "r")
 # pylint: disable=no-member
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # pylint: enable=no-member
@@ -91,7 +97,8 @@ class MnistClient(fl.client.Client):
         batch_size = int(config["batch_size"])
         pin_memory = bool(config["pin_memory"])
         num_workers = int(config["num_workers"])
-
+	#num_workers = 0
+	
         # Set model parameters
         set_weights(self.model, weights)
 
@@ -106,7 +113,7 @@ class MnistClient(fl.client.Client):
 
         # Train model
         trainloader = torch.utils.data.DataLoader(
-            self.trainset, batch_size=batch_size, shuffle=True, **kwargs
+            self.trainset, batch_size=64, shuffle=True, num_workers=0, **kwargs
         )
         utils.train(self.model, trainloader, epochs=epochs, device=DEVICE)
 
@@ -129,7 +136,7 @@ class MnistClient(fl.client.Client):
 
         # Evaluate the updated model on the local dataset
         testloader = torch.utils.data.DataLoader(
-            self.testset, batch_size=32, shuffle=False
+            self.testset, batch_size=32, shuffle=False, num_workers=0
         )
         loss, accuracy = utils.test(self.model, testloader, device=DEVICE)
 
@@ -183,6 +190,24 @@ def main() -> None:
     # Start client
     client = MnistClient(args.cid, model, trainset, testset)
     fl.client.start_client(args.server_address, client)
+    
+    difference = []
+    for i in range(51):
+        fileName = str(i) + "_MNISTIMG.png"
+        img  = Image.open(fileName)
+        predicted = utils.imgpredict(model, fileName)
+        img_value = int(f.readline())
+        classes = ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9')
+        output = "Image number " + str(i) + " Predicted: "+"".join(f"{classes[predicted[0]]:s}") + " Actual: "+ str(img_value)
+        x=int("".join(f"{classes[predicted[0]]:s}"))
+        if img_value == x:
+        	print(output)
+        else:
+        	difference.append(output)
+    print("\nDifferences: ")
+    for i in difference:
+    	print(i)
+        
 
 
 if __name__ == "__main__":

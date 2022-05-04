@@ -36,52 +36,71 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms as transforms
 from torch import Tensor
-from torchvision import datasets
+from torchvision.datasets import MNIST
 from torchvision.models import resnet18
+from PIL import Image
+import os
 
-DATA_ROOT = Path("./data/mnist")
+NUMBERS_ROOT = Path("./numbers.txt")
+#DATA_ROOT = Path("./data/mnist")
+#MNIST_ROOT = Path("./MNIST_PNG")
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+f = open(NUMBERS_ROOT, "r")
+
+class FastMNIST(MNIST):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Scale data to [0,1]
+        self.data = self.data.unsqueeze(1).float().div(255)
+
+        # Normalize it with the usual MNIST mean and std
+        self.data = self.data.sub_(0.1307).div_(0.3081)
+
+        # Put both data and targets on GPU in advance
+        self.data, self.targets = self.data.to(device), self.targets.to(device)
+
+    def __getitem__(self, index):
+        """
+        Args:
+            index (int): Index
+
+        Returns:
+            tuple: (image, target) where target is index of the target class.
+        """
+        img, target = self.data[index], self.targets[index]
+
+        return img, target
 
 # pylint: disable=unsubscriptable-object
 class Net(nn.Module):
     """Simple CNN adapted from 'PyTorch: A 60 Minute Blitz'."""
 
     def __init__(self) -> None:
-
         super(Net, self).__init__()
+
         self.conv1 = nn.Conv2d(1, 32, 3, 1)
         self.conv2 = nn.Conv2d(32, 64, 3, 1)
-        #self.dropout1 = nn.Dropout2d(0.25)
-        #self.dropout2 = nn.Dropout2d(0.5)
         self.fc1 = nn.Linear(9216, 128)
         self.fc2 = nn.Linear(128, 10)
 
-       
 
     # pylint: disable=arguments-differ,invalid-name
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         """Compute forward pass."""
         x = self.conv1(x)
         x = F.relu(x)
         x = self.conv2(x)
         x = F.relu(x)
         x = F.max_pool2d(x, 2)
-        # x = self.dropout1(x)
         x = torch.flatten(x, 1)
         x = self.fc1(x)
         x = F.relu(x)
-        # x = self.dropout2(x)
         x = self.fc2(x)
         output = F.log_softmax(x, dim=1)
         return output
-
-        """x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = x.view(-1, 8192)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x"""
 
     def get_weights(self) -> fl.common.Weights:
         """Get model weights as a list of NumPy ndarrays."""
@@ -120,20 +139,11 @@ def load_model(model_name: str) -> nn.Module:
 
 
 # pylint: disable=unused-argument
-def load_mnist(download=True) -> Tuple[datasets.MNIST, datasets.MNIST]:
+def load_mnist(download=True):
     """Load CIFAR-10 (training and test set)."""
-    transform = transforms.Compose(
-        [
-            transforms.ToTensor(),
-            transforms.Normalize((0.5,), (0.5,)),
-        ]
-    )
-    trainset = datasets.MNIST(
-        root=DATA_ROOT / "data", train=True, download=download, transform=transform
-    )
-    testset = datasets.MNIST(
-        root=DATA_ROOT / "data", train=False, download=download, transform=transform
-    )
+    
+    trainset = FastMNIST('data/MNIST', train = True, download=True )
+    testset = FastMNIST('data/MNIST', train = False, download=True )
     return trainset, testset
 
 
@@ -194,3 +204,27 @@ def test(
             correct += (predicted == labels).sum().item()
     accuracy = correct / total
     return loss, accuracy
+
+def imgpredict(model : Net, image : Image) -> Tuple[float, float]:
+
+    img = Image.open(image)
+
+    transform = transforms.Compose([
+        transforms.PILToTensor()
+    ])
+
+    # Convert the PIL image to Torch tensor
+    img = transform(img)
+
+    # you can divide numpy arrays by a constant natively
+    img = img / 255.0
+
+    # This makes a 4d tensor (batched image) with shape [1, channels, width, height]
+    image_8 = torch.Tensor(img).unsqueeze(axis=0)
+
+    outputs = model(image_8)
+    _, predicted = torch.max(outputs, 1)
+    return predicted
+    #classes = ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9')
+    #print('Predicted:',''.join(f'{classes[predicted[0]]:s}'), 'Actual:', f.readline())
+
